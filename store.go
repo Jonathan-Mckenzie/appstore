@@ -317,28 +317,31 @@ func (c *StoreClient) GetSubscriptionRenewalDataStatus(ctx context.Context, prod
 func (c *StoreClient) GetNotificationHistory(ctx context.Context, body NotificationHistoryRequest) (responses []NotificationHistoryResponseItem, err error) {
 	baseURL := c.hostUrl + PathGetNotificationHistory
 
-	bodyBuf := new(bytes.Buffer)
-	err = json.NewEncoder(bodyBuf).Encode(body)
-	if err != nil {
-		return nil, err
-	}
-
 	URL := baseURL
-	var client HTTPClient
-	client = c.httpCli
-	client = SetInitializer(client, c.initHttpClient)
-	client = RequireResponseStatus(client, http.StatusOK)
 
 	for {
 		rsp := NotificationHistoryResponses{}
 		rsp.NotificationHistory = make([]NotificationHistoryResponseItem, 0)
 
+		// create client on every for-iteration, the client gets stuck on the same pagination request otherwise.
+		var client HTTPClient
+		client = c.httpCli
+		client = SetInitializer(client, c.initHttpClient)
+		client = SetRequestBodyJSON(client, body)
 		client = SetRequest(ctx, client, http.MethodPost, URL)
-		client = SetRequestBodyJSON(client, bodyBuf)
 		client = SetResponseBodyHandler(client, json.Unmarshal, &rsp)
-		_, err = client.Do(nil)
+		resp, err := client.Do(nil)
+
 		if err != nil {
-			return nil, err
+			if resp != nil { // also print response body, usually contains an error description beyond the status code
+				respBodyBytes, respBodyBytesErr := io.ReadAll(resp.Body)
+				if respBodyBytesErr != nil {
+					return nil, err // failed to decode, abort
+				}
+
+				return nil, fmt.Errorf(string(respBodyBytes)+" %w", err)
+			}
+			return nil, err // we only have the http err
 		}
 
 		responses = append(responses, rsp.NotificationHistory...)

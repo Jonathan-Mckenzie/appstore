@@ -1,6 +1,6 @@
-module github.com/richzw/appstore
+module github.com/Jonathan-Mckenzie/appstore
 
-go 1.18
+go 1.21.4
 
 require (
 	github.com/golang-jwt/jwt/v4 v4.3.0

@@ -208,7 +208,7 @@ type NotificationHistoryRequest struct {
 	NotificationType      NotificationTypeV2 `json:"notificationType,omitempty"`
 	NotificationSubtype   SubtypeV2          `json:"notificationSubtype,omitempty"`
 	OnlyFailures          bool               `json:"onlyFailures"`
-	TransactionId         string             `json:"transactionId"`
+	TransactionId         string             `json:"transactionId,omitempty"`
 }
 
 type NotificationTypeV2 string
