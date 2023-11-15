@@ -11,7 +11,7 @@ The App Store Server API is independent of the app’s installation status on th
 ### Installation
 
 ```shell
-go get github.com/richzw/appstore
+go get github.com/Jonathan-Mckenzie/appstore
 ```
 
 ### [Generate a Private Key](https://developer.apple.com/documentation/appstoreserverapi/creating_api_keys_to_use_with_the_app_store_server_api)
@@ -27,7 +27,7 @@ go get github.com/richzw/appstore
 
 ```go
 import(
-	"github.com/richzw/appstore"
+	"github.com/Jonathan-Mckenzie/appstore"
 )
 
 // ACCOUNTPRIVATEKEY is the key file generated from previous step
@@ -67,7 +67,7 @@ func main() {
 
 ```go
 import(
-    "github.com/richzw/appstore"
+    "github.com/Jonathan-Mckenzie/appstore"
 )
 
 // ACCOUNTPRIVATEKEY is the key file generated from previous step
@@ -98,7 +98,7 @@ func main() {
 
 ```go
 import(
-    "github.com/richzw/appstore"
+    "github.com/Jonathan-Mckenzie/appstore"
 )
 
 // ACCOUNTPRIVATEKEY is the key file generated from previous step
@@ -133,7 +133,7 @@ func main() {
 
 ```go
 import(
-    "github.com/richzw/appstore"
+    "github.com/Jonathan-Mckenzie/appstore"
 )
 
 // ACCOUNTPRIVATEKEY is the key file generated from previous step
@@ -165,7 +165,7 @@ func main() {
 
 ```go
 import (
-    "github.com/richzw/appstore"
+    "github.com/Jonathan-Mckenzie/appstore"
     "github.com/golang-jwt/jwt/v4"
 )
 
@@ -190,7 +190,7 @@ func main() {
 
 ```go
 import (
-    "github.com/richzw/appstore"
+    "github.com/Jonathan-Mckenzie/appstore"
     "github.com/golang-jwt/jwt/v4"
 )
 
