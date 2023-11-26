@@ -324,6 +324,8 @@ func (c *StoreClient) GetNotificationHistory(ctx context.Context, body Notificat
 
 	URL := baseURL
 
+	retryCount := 0
+
 	for {
 		rsp := NotificationHistoryResponses{}
 		rsp.NotificationHistory = make([]NotificationHistoryResponseItem, 0)
@@ -349,7 +351,13 @@ func (c *StoreClient) GetNotificationHistory(ctx context.Context, body Notificat
 			return nil, err // we only have the http err
 		}
 
-		// https://developer.apple.com/documentation/appstoreserverapi/get_notification_history#response-codes
+		// Hit a rate limit, back off for 1 second. https://developer.apple.com/documentation/appstoreserverapi/ratelimitexceedederror
+		if resp.StatusCode == 429 && retryCount < 10 {
+			retryCount += 1
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		// Handle unsuccessful requests https://developer.apple.com/documentation/appstoreserverapi/get_notification_history#response-codes
 		if resp.StatusCode != 200 {
 			respBodyBytes, respBodyBytesErr := io.ReadAll(resp.Body)
 			if respBodyBytesErr != nil {
