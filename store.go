@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -33,6 +34,10 @@ const (
 	PathGetNotificationHistory              = "/inApps/v1/notifications/history"
 	PathRequestTestNotification             = "/inApps/v1/notifications/test"
 	PathGetTestNotificationStatus           = "/inApps/v1/notifications/test/{testNotificationToken}"
+)
+
+var (
+	ErrGetNotificationHistory = errors.New("failed to fetch notification history")
 )
 
 type StoreConfig struct {
@@ -342,6 +347,15 @@ func (c *StoreClient) GetNotificationHistory(ctx context.Context, body Notificat
 				return nil, fmt.Errorf(string(respBodyBytes)+" %w", err)
 			}
 			return nil, err // we only have the http err
+		}
+
+		// https://developer.apple.com/documentation/appstoreserverapi/get_notification_history#response-codes
+		if resp.StatusCode != 200 {
+			respBodyBytes, respBodyBytesErr := io.ReadAll(resp.Body)
+			if respBodyBytesErr != nil {
+				return nil, err // failed to decode, abort
+			}
+			return nil, fmt.Errorf(string(respBodyBytes)+" %w", ErrGetNotificationHistory)
 		}
 
 		responses = append(responses, rsp.NotificationHistory...)
