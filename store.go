@@ -38,6 +38,7 @@ const (
 
 var (
 	ErrGetNotificationHistory = errors.New("failed to fetch notification history")
+	ErrGetTransactionHistory  = errors.New("failed to fetch transaction history")
 )
 
 type StoreConfig struct {
@@ -170,29 +171,54 @@ func (c *StoreClient) GetTransactionHistory(ctx context.Context, originalTransac
 		query = &url.Values{}
 	}
 
-	var client HTTPClient
-	client = c.httpCli
-	client = SetInitializer(client, c.initHttpClient)
-	client = RequireResponseStatus(client, http.StatusOK)
+	retryCount := 0
 
 	for {
 		rsp := HistoryResponse{}
+		var client HTTPClient
+		client = c.httpCli
+		client = SetInitializer(client, c.initHttpClient)
+		client = RequireResponseStatus(client, http.StatusOK)
 		client = SetRequest(ctx, client, http.MethodGet, URL+"?"+query.Encode())
 		client = SetResponseBodyHandler(client, json.Unmarshal, &rsp)
-		_, err = client.Do(nil)
+		resp, err := client.Do(nil)
+
 		if err != nil {
-			return nil, err
+			if resp != nil { // also print response body, usually contains an error description beyond the status code
+				respBodyBytes, respBodyBytesErr := io.ReadAll(resp.Body)
+				if respBodyBytesErr != nil {
+					return nil, err // failed to decode, abort
+				}
+
+				return nil, fmt.Errorf(string(respBodyBytes)+" %w", err)
+			}
+			return nil, err // we only have the http err
+		}
+
+		// Hit a rate limit, back off for 1 second. https://developer.apple.com/documentation/appstoreserverapi/ratelimitexceedederror
+		if resp.StatusCode == 429 && retryCount < 10 {
+			retryCount += 1
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		// Handle unsuccessful requests https://developer.apple.com/documentation/appstoreserverapi/get_notification_history#response-codes
+		if resp.StatusCode != 200 {
+			respBodyBytes, respBodyBytesErr := io.ReadAll(resp.Body)
+			if respBodyBytesErr != nil {
+				return nil, err // failed to decode, abort
+			}
+			return nil, fmt.Errorf(string(respBodyBytes)+" %w", ErrGetTransactionHistory)
 		}
 
 		responses = append(responses, &rsp)
 		if !rsp.HasMore {
-			return
+			return responses, nil
 		}
 
 		if rsp.Revision != "" {
 			query.Set("revision", rsp.Revision)
 		} else {
-			return
+			return responses, nil
 		}
 
 		time.Sleep(10 * time.Millisecond)
