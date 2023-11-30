@@ -196,7 +196,7 @@ func (c *StoreClient) GetTransactionHistory(ctx context.Context, originalTransac
 		}
 
 		// Hit a rate limit, back off for 1 second. https://developer.apple.com/documentation/appstoreserverapi/ratelimitexceedederror
-		if resp.StatusCode == 429 && retryCount < 10 {
+		if (resp.StatusCode == 429 || resp.StatusCode == 500) && retryCount < 10 {
 			retryCount += 1
 			time.Sleep(1 * time.Second)
 			continue
@@ -378,7 +378,7 @@ func (c *StoreClient) GetNotificationHistory(ctx context.Context, body Notificat
 		}
 
 		// Hit a rate limit, back off for 1 second. https://developer.apple.com/documentation/appstoreserverapi/ratelimitexceedederror
-		if resp.StatusCode == 429 && retryCount < 10 {
+		if (resp.StatusCode == 429 || resp.StatusCode == 500) && retryCount < 10 {
 			retryCount += 1
 			time.Sleep(1 * time.Second)
 			continue
