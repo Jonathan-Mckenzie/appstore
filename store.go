@@ -365,6 +365,9 @@ func (c *StoreClient) GetNotificationHistory(ctx context.Context, body Notificat
 		client = SetResponseBodyHandler(client, json.Unmarshal, &rsp)
 		resp, err := client.Do(nil)
 
+		fmt.Println("[GetNotificationHistory] resp: ", resp)
+		fmt.Println("[GetNotificationHistory] err: ", err)
+
 		if err != nil {
 			if resp != nil { // also print response body, usually contains an error description beyond the status code
 				respBodyBytes, respBodyBytesErr := io.ReadAll(resp.Body)
