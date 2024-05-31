@@ -37,8 +37,9 @@ const (
 )
 
 var (
-	ErrGetNotificationHistory = errors.New("failed to fetch notification history")
-	ErrGetTransactionHistory  = errors.New("failed to fetch transaction history")
+	ErrGetNotificationHistory     = errors.New("failed to fetch notification history")
+	ErrGetTransactionHistory      = errors.New("failed to fetch transaction history")
+	ErrGetAllSubscriptionStatuses = errors.New("failed to fetch all subscription statuses")
 )
 
 type StoreConfig struct {
@@ -107,19 +108,50 @@ func (c *StoreClient) GetALLSubscriptionStatuses(ctx context.Context, originalTr
 	URL := c.hostUrl + PathGetALLSubscriptionStatus
 	URL = strings.Replace(URL, "{originalTransactionId}", originalTransactionId, -1)
 
-	var client HTTPClient
-	client = c.httpCli
-	client = SetInitializer(client, c.initHttpClient)
-	client = RequireResponseStatus(client, http.StatusOK)
-	client = SetRequest(ctx, client, http.MethodGet, URL)
-	rsp := &StatusResponse{}
-	client = SetResponseBodyHandler(client, json.Unmarshal, rsp)
+	retryCount := 0
 
-	_, err := client.Do(nil)
-	if err != nil {
-		return nil, err
+	for {
+		var client HTTPClient
+		client = c.httpCli
+		client = SetInitializer(client, c.initHttpClient)
+		client = RequireResponseStatus(client, http.StatusOK)
+		client = SetRequest(ctx, client, http.MethodGet, URL)
+		data := &StatusResponse{}
+		client = SetResponseBodyHandler(client, json.Unmarshal, data)
+
+		resp, err := client.Do(nil)
+
+		// Something unrecoverable went wrong
+		if err != nil {
+			if resp != nil { // also print response body, usually contains an error description beyond the status code
+				respBodyBytes, respBodyBytesErr := io.ReadAll(resp.Body)
+				if respBodyBytesErr != nil {
+					return nil, err // failed to decode, abort
+				}
+
+				return nil, fmt.Errorf(string(respBodyBytes)+" %w", err)
+			}
+			return nil, err // we only have the http err
+		}
+
+		// Hit a rate limit, back off for 1 second. https://developer.apple.com/documentation/appstoreserverapi/ratelimitexceedederror
+		if (resp.StatusCode == 429 || resp.StatusCode == 500) && retryCount < 10 {
+			retryCount += 1
+			time.Sleep(time.Duration(retryCount) * time.Second)
+			continue
+		}
+		// Handle unsuccessful requests https://developer.apple.com/documentation/appstoreserverapi/get_all_subscription_statuses#response-codes
+		if resp.StatusCode != 200 {
+			respBodyBytes, respBodyBytesErr := io.ReadAll(resp.Body)
+			if respBodyBytesErr != nil {
+				return nil, err // failed to decode, abort
+			}
+			return nil, fmt.Errorf(string(respBodyBytes)+" %w", ErrGetAllSubscriptionStatuses)
+		}
+
+		return data, nil
 	}
-	return rsp, nil
+
 }
 
 // GetTransactionInfo https://developer.apple.com/documentation/appstoreserverapi/get_transaction_info
@@ -198,7 +230,7 @@ func (c *StoreClient) GetTransactionHistory(ctx context.Context, originalTransac
 		// Hit a rate limit, back off for 1 second. https://developer.apple.com/documentation/appstoreserverapi/ratelimitexceedederror
 		if (resp.StatusCode == 429 || resp.StatusCode == 500) && retryCount < 10 {
 			retryCount += 1
-			time.Sleep(1 * time.Second)
+			time.Sleep(time.Duration(retryCount) * time.Second)
 			continue
 		}
 		// Handle unsuccessful requests https://developer.apple.com/documentation/appstoreserverapi/get_notification_history#response-codes
@@ -380,7 +412,7 @@ func (c *StoreClient) GetNotificationHistory(ctx context.Context, body Notificat
 		// Hit a rate limit, back off for 1 second. https://developer.apple.com/documentation/appstoreserverapi/ratelimitexceedederror
 		if (resp.StatusCode == 429 || resp.StatusCode == 500) && retryCount < 10 {
 			retryCount += 1
-			time.Sleep(1 * time.Second)
+			time.Sleep(time.Duration(retryCount) * time.Second)
 			continue
 		}
 		// Handle unsuccessful requests https://developer.apple.com/documentation/appstoreserverapi/get_notification_history#response-codes
